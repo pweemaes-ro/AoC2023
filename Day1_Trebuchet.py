@@ -51,6 +51,7 @@ def get_line_values(line: str) -> tuple[int, int]:
 	
 	first_digit, first_any = get_digits(line)
 	last_digit, last_any = get_digits(line, reverse=True)
+	
 	return 10 * first_digit + last_digit, 10 * first_any + last_any
 
 
