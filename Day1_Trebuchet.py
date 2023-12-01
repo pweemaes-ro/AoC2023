@@ -1,6 +1,4 @@
 """AoC 2023 day 1."""
-from string import digits
-
 day_nr = 1
 
 # lookup table for digits as text, with corresponding values.
@@ -25,7 +23,8 @@ def get_digits(line: str, reverse: bool = False) -> tuple[int, int]:
 	- second integer is the value of the first (or last) digit in the line when
 	  also looking for digits as text ('one', 'two', ..., 'nine').
 	If reverse == False, the values are the first found in the line, else the
-	values are the last found in the line. Raises ValueError if no digits found in line."""
+	values are the last found in the line. Raises ValueError if no digits found
+	in line."""
 	
 	if reverse:
 		indices = range(len(line) - 1, -1, -1)
@@ -49,9 +48,9 @@ def get_digits(line: str, reverse: bool = False) -> tuple[int, int]:
 
 def get_line_values(line: str) -> tuple[int, int]:
 	"""Return calibration values (integers) for the line. The first value is
-	the result of looking for digits ('1', '2', ..., '9'.) , the second value is the
-	result of looking for digits and 'digits as text' ('one', 'two', ..., 'nine').
-	"""
+	the result of looking for digits ('1', '2', ..., '9'.) , the second value
+	is the result of looking for digits and 'digits as text' ('one', 'two',
+	..., 'nine')."""
 	
 	first_digit, first_any = get_digits(line)
 	last_digit, last_any = get_digits(line, reverse=True)
