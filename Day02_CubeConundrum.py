@@ -1,7 +1,6 @@
 """AoC 2023 Day 2"""
-import re
 
-day_nr = 2
+from re import findall
 
 
 def solve() -> None:
@@ -14,7 +13,7 @@ def solve() -> None:
 	solution_part_2 = 0
 	game_nr = 0
 	
-	with open(f"Day{day_nr}_input.txt") as input_file:
+	with (open(f"Day02_input.txt") as input_file):
 
 		while line := input_file.readline():
 			game_nr += 1    # we assume games are ordered in the input file
@@ -23,7 +22,7 @@ def solve() -> None:
 			
 			for color in colors:
 				# noinspection RegExpAnonymousGroup
-				max_found = max(map(int, re.findall(rf"(\d+) {color}", line)))
+				max_found = max(map(int, findall(rf"(\d+) {color}", line)))
 				game_valid = game_valid and max_found <= max_allowed[color]
 				game_power *= max_found
 

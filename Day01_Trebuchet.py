@@ -1,5 +1,4 @@
 """AoC 2023 day 1."""
-day_nr = 1
 
 # lookup table for digits as text, with corresponding values.
 text_to_int = {"one": 1,
@@ -64,7 +63,7 @@ def solve() -> None:
 	solution_1 = 0
 	solution_2 = 0
 
-	with open(f"Day{day_nr}_input.txt") as input_file:
+	with open(f"Day01_input.txt") as input_file:
 		
 		for line in input_file.readlines():
 			part_1_value, part_2_value = get_line_values(line)
