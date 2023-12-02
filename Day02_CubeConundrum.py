@@ -9,8 +9,8 @@ def solve() -> None:
 	
 	max_allowed = {"red": 12, "green": 13, "blue": 14}
 	colors = tuple(max_allowed.keys())
-	solution_part_1 = 0
-	solution_part_2 = 0
+	solution_1 = 0
+	solution_2 = 0
 	game_nr = 0
 	
 	with (open(f"Day02_input.txt") as input_file):
@@ -26,11 +26,11 @@ def solve() -> None:
 				game_valid = game_valid and max_found <= max_allowed[color]
 				game_power *= max_found
 
-			solution_part_1 += game_nr * game_valid
-			solution_part_2 += game_power
+			solution_1 += game_nr * game_valid
+			solution_2 += game_power
 			
-		print(solution_part_1, solution_part_2)
-		assert (solution_part_1, solution_part_2) == (1931, 83105)
+		print(solution_1, solution_2)
+		assert (solution_1, solution_2) == (1931, 83105)
 
 
 if __name__ == "__main__":
