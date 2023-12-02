@@ -31,11 +31,10 @@ def get_digits(line: str, reverse: bool = False) -> tuple[int, int]:
 	else:
 		indices = range(len(line))
 
-	first_digit: int | None = None
 	first_any: int | None = None
 	
 	for index in indices:
-		if first_digit := digit_to_int.get(line[index], first_digit):
+		if first_digit := digit_to_int.get(line[index]):
 			return first_digit, first_any or first_digit
 
 		if first_any is None:
@@ -65,7 +64,7 @@ def solve() -> None:
 	solution_1 = 0
 	solution_2 = 0
 
-	with (open(f"Day{day_nr}_input.txt") as input_file):
+	with open(f"Day{day_nr}_input.txt") as input_file:
 		
 		for line in input_file.readlines():
 			part_1_value, part_2_value = get_line_values(line)
