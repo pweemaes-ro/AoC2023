@@ -29,8 +29,8 @@ def solve() -> None:
 			solution_1 += game_nr * game_valid
 			solution_2 += game_power
 			
-		print(solution_1, solution_2)
-		assert (solution_1, solution_2) == (1931, 83105)
+	print(solution_1, solution_2)
+	assert (solution_1, solution_2) == (1931, 83105)
 
 
 if __name__ == "__main__":
