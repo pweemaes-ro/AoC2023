@@ -11,12 +11,11 @@ def solve() -> None:
 	colors = tuple(max_allowed.keys())
 	solution_1 = 0
 	solution_2 = 0
-	game_nr = 0
 	
 	with (open(f"Day02_input.txt") as input_file):
+	
+		for game_nr, line in enumerate(input_file, start=1):
 
-		while line := input_file.readline():
-			game_nr += 1    # we assume games are ordered in the input file
 			game_valid = True
 			game_power = 1
 			
