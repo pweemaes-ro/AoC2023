@@ -11,6 +11,8 @@ text_to_int = {"one": 1,
                "eight": 8,
                "nine": 9}
 
+first_chars = set(int_as_text[0] for int_as_text in text_to_int.keys())
+
 # lookup table for digits, with corresponding values.
 digit_to_int = {c: int(c) for c in "123456789"}     # 0 is not an option...
 
@@ -36,7 +38,7 @@ def get_digits(line: str, reverse: bool = False) -> tuple[int, int]:
 		if first_digit := digit_to_int.get(line[index]):
 			return first_digit, first_any or first_digit
 
-		if first_any is None:
+		if first_any is None and line[index] in first_chars:
 			for length in (3, 4, 5):
 				if first_any := text_to_int.get(line[index:index + length]):
 					break
@@ -65,7 +67,7 @@ def solve() -> None:
 
 	with open(f"Day01_input.txt") as input_file:
 		
-		for line in input_file.readlines():
+		for line in input_file:
 			part_1_value, part_2_value = get_line_values(line)
 			solution_1 += part_1_value
 			solution_2 += part_2_value
