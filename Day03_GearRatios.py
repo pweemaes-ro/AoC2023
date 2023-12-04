@@ -1,4 +1,4 @@
-"""AoC 2023 Day 2"""
+"""AoC 2023 Day 3"""
 from dataclasses import dataclass
 from math import prod
 from re import finditer
@@ -22,8 +22,8 @@ class NumberKey:
 	"""A number key holds the ranges for the rows and a cols that are relevant
 	for checking for symbols."""
 	
-	row_range: range
-	col_range: range
+	row_range: tuple[int, ...]
+	col_range: tuple[int, ...]
 	
 	def __hash__(self) -> int:
 		"""Must provide hash func, since dict key must be hashable."""
@@ -40,8 +40,9 @@ def add_symbols(line: str, line_nr: int, symbols: symbols_dict) -> None:
 
 	matches = finditer(r"[^.0-9\n]", line)
 	for match in matches:
-		symbols[(line_nr, match.start())] = \
-			SymbolValue(match.string[match.start():match.end()], [])
+		coordinate = (line_nr, match.start())
+		symbol = match.string[match.start():match.end()]
+		symbols[coordinate] = SymbolValue(symbol, [])
 
 
 def add_numbers(line: str, line_nr: int, numbers: numbers_dict) -> None:
@@ -49,31 +50,40 @@ def add_numbers(line: str, line_nr: int, numbers: numbers_dict) -> None:
 
 	matches = finditer(r"[0-9]+", line)
 	for match in matches:
-		number_key = NumberKey(range(line_nr - 1, line_nr + 2),
-		                       range(match.start() - 1, match.end() + 1))
-		numbers[number_key] = int(match.string[match.start():match.end()])
+		
+		rows_range = tuple(range(line_nr - 1, line_nr + 2))
+		cols_range = tuple(range(match.start() - 1, match.end() + 1))
+		number_key = NumberKey(rows_range, cols_range)
+		number_value = int(match.string[match.start():match.end()])
+		
+		numbers[number_key] = number_value
 
 
-def get_sum_of_connected_part_nrs(numbers: numbers_dict,
-                                  symbols: symbols_dict) -> int:
-	"""todo: add docstr, clean up"""
-
+def get_sum_of_part_nrs(numbers: numbers_dict,
+                        symbols: symbols_dict) -> int:
+	"""Return the sum of all part nrs. If (and only if) at the location of any
+	of the s's there is a symbol, then the number is a part nr:
+		sss ssss sssss
+		s1s s12s s123s
+		sss ssss sssss
+	The symbol's connected values list is updated with the number if any of the
+	s's is a '*'. (Any "*" that ends up with exactly 2 numbers in its connected
+	values list is a gear.)"""
+	
 	parts_sum = 0
 
 	for pos_info, value in numbers.items():
 
 		is_part = False
+
 		for row in pos_info.row_range:
 			for col in pos_info.col_range:
 				if symbol_value := symbols.get((row, col)):
 					is_part = True
 					if symbol_value.symbol == "*":
 						symbol_value.part_nrs.append(value)
-					break
 
-			if is_part:
-				parts_sum += value
-				break
+		parts_sum += value * is_part
 	
 	return parts_sum
 
@@ -85,14 +95,13 @@ def solve() -> None:
 	numbers: numbers_dict = dict()
 	symbols: symbols_dict = dict()
 
-	line_nr = 0
 	with (open(f"Day03_input.txt") as input_file):
-		while line := input_file.readline():
+
+		for line_nr, line in enumerate(input_file):
 			add_symbols(line, line_nr, symbols)
 			add_numbers(line, line_nr, numbers)
-			line_nr += 1
 
-	solution_1 = get_sum_of_connected_part_nrs(numbers, symbols)
+	solution_1 = get_sum_of_part_nrs(numbers, symbols)
 	solution_2 = sum(prod(symbol.part_nrs)
 	                 for symbol in symbols.values()
 	                 if symbol.symbol == "*" and len(symbol.part_nrs) == 2)
