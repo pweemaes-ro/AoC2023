@@ -29,7 +29,7 @@ class ConversionMap:
 	to convert source_nrs that fall in a MapLine's interval."""
 	
 	def __init__(self, map_lines: list[MapLine]):
-		self.map_lines: list[MapLine] = map_lines
+		self.map_lines = map_lines
 		map_lines.sort()
 	
 	@staticmethod
@@ -63,8 +63,8 @@ class ConversionMap:
 	
 	def get_interval_parts(self, interval: Interval, map_line: MapLine) \
 		-> tuple[Interval | None, Interval | None, Interval | None]:
-		"""Return the part before, the part overlapping and the part after
-		map_line's interval. Missing parts are returned as None."""
+		"""Return the part before, the part (adjusted!) overlapping and the
+		part after map_line's interval. Missing parts are returned as None."""
 		
 		map_interval = map_line.interval
 		
@@ -104,9 +104,9 @@ class ConversionMap:
 
 	def get_destination_intervals(self, source_intervals: list[Interval]) \
 		-> list[Interval]:
-		"""Return sorted list of destination intervals for src intervals."""
+		"""Return sorted list of destination intervals for source intervals."""
 		
-		all_destinations: list[Interval] = []
+		all_destinations = []
 		
 		for interval in source_intervals:
 			
@@ -152,20 +152,33 @@ def get_conversion_table(input_file: TextIO) -> ConversionMap:
 	return ConversionMap(map_lines)
 
 
+def get_sorted_seed_intervals(seed_nrs: list[int]) -> list[Interval]:
+	"""Return list of intervals derived from a list of seed nrs."""
+	
+	seed_nrs_iterator = iter(seed_nrs)
+	seeds_as_tuples = [*zip(seed_nrs_iterator, seed_nrs_iterator)]
+	seed_intervals = [Interval(start, start + length - 1)
+	                  for (start, length) in seeds_as_tuples]
+	seed_intervals.sort()
+	return seed_intervals
+
+
+def get_seed_nrs(line: str) -> list[int]:
+	"""Return a list of seed nrs from the line."""
+	
+	return [*map(int, findall(r"[0-9]+", line))]
+
+
 def solve() -> None:
 	"""Solve the problems, print the solutions and - if solutions are already
 	known - verify the solutions."""
 	
 	with (open(f"Day05_input.txt") as input_file):
-		# read seeds from first line.
-		seed_nrs = list(map(int, findall(r"[0-9]+", input_file.readline())))
-		seed_intervals = [Interval(start, start + length - 1)
-		                  for (start, length) in [*zip(*[iter(seed_nrs)] * 2)]]
-		seed_intervals.sort()
+		source_nrs = get_seed_nrs(input_file.readline())
+		source_intervals = get_sorted_seed_intervals(source_nrs)
+		
 		input_file.readline()  # skip empty conversion_interval
 		
-		source_nrs = seed_nrs
-		source_intervals = seed_intervals
 		while input_file.readline():   # skip header line
 			ct = get_conversion_table(input_file)
 			source_nrs = ct.get_destinations(source_nrs)
