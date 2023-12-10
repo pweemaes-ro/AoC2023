@@ -1,11 +1,14 @@
 """AoC 2023 Day 6"""
 from math import ceil, sqrt, floor, prod
 from re import findall
+from typing import TypeAlias
+
+Interval: TypeAlias = tuple[int, int]
 
 
-def get_range(time_and_distance: tuple[int, int]) -> tuple[int, int]:
-	"""Solve -x^2 - time * x > distance. Return the smallest and larges integer
-	values for x satisfying this equation."""
+def get_interval_size(time_and_distance: tuple[int, int]) -> int:
+	"""Return size of interval [x, y] with x the smallest integer and y the
+	largest integer satisfying equation -x^2 - time * x > distance."""
 
 	time, distance = time_and_distance
 
@@ -30,10 +33,10 @@ def get_range(time_and_distance: tuple[int, int]) -> tuple[int, int]:
 	# INequality!
 	if int(roots[0]) == roots[0]:
 		assert int(roots[1]) == roots[1]
-		return int(roots[0]) + 1, int(roots[1]) - 1
+		return int(roots[1]) - int(roots[0]) - 1
 	
 	# float roots, smaller root should be rounded up, larger rounded down.
-	return ceil(min(roots)), floor(max(roots))
+	return floor(max(roots)) - ceil(min(roots)) + 1
 
 
 def solve() -> None:
@@ -43,13 +46,15 @@ def solve() -> None:
 	with (open(f"Day06_input.txt") as input_file):
 		times = [*map(int, findall(r"[0-9]+", input_file.readline()))]
 		distances = [*map(int, findall(r"[0-9]+", input_file.readline()))]
-		solution_1 = prod(last - first + 1
-		                  for (first, last) in
-		                  map(get_range, zip(times, distances)))
-	solution_2 = 0
+
+	solution_1 = prod(map(get_interval_size, zip(times, distances)))
+	
+	combined_times = int(''.join(str(time) for time in times))
+	combined_distances = int(''.join(str(time) for time in distances))
+	solution_2 = get_interval_size((combined_times, combined_distances))
 	
 	print(solution_1, solution_2)
-	assert (solution_1, solution_2) == (131376, 0)
+	assert (solution_1, solution_2) == (131376, 34123437)
 
 
 if __name__ == "__main__":
