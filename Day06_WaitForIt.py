@@ -1,4 +1,4 @@
-"""AoC 2023 Day 5"""
+"""AoC 2023 Day 6"""
 from math import ceil, sqrt, floor, prod
 from re import findall
 
@@ -10,23 +10,29 @@ def get_range(time_and_distance: tuple[int, int]) -> tuple[int, int]:
 	time, distance = time_and_distance
 
 	# We calculate the roots of -x^2 - time * x - distance = 0.
-	discriminant = (time * time) - (distance << 2)
+	# abc formula: a = -1, b = -time, c = -distance, so
+	# 1. since a < 0 parabola has maximum
+	# 2. discriminant = -time * -time - -4 * -1 * distance
+	#                 = time * time - (distance << 2)
+	discriminant = time * time - (distance << 2)
 
 	assert discriminant > 0
 
 	square_root_of_discriminant = sqrt(discriminant)
-	#  The one where we take the negative square root is always the largest of
-	#  the two roots.
-	roots = [(-time + square_root_of_discriminant) / -2,
-	         (-time - square_root_of_discriminant) / -2]
+	# 1. roots = -b pm square_root_of_discriminant / 2a
+	#          = time pm square_root_of_discriminant / -2
+	# 2. Since denominator = negative and roots are always positive,
+	#    time + square_root_of_discriminant) / -2 is always the smallest root.
+	roots = [(time + square_root_of_discriminant) / -2,
+	         (time - square_root_of_discriminant) / -2]
 	
-	# integer roots should be adjusted to satisfy inequality!
+	# integer roots, smaller must be incremented, larger decremented to satisfy
+	# INequality!
 	if int(roots[0]) == roots[0]:
 		assert int(roots[1]) == roots[1]
 		return int(roots[0]) + 1, int(roots[1]) - 1
 	
-	# we need integers, so for non-integer roots take ceil of smallest root and
-	# floor of largest root.
+	# float roots, smaller root should be rounded up, larger rounded down.
 	return ceil(min(roots)), floor(max(roots))
 
 
