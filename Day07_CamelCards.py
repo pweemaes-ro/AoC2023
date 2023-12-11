@@ -54,7 +54,7 @@ def get_scores(hand: str) -> tuple[Score, Score]:
 	if (nr_jokers := counter.get('J', 0)) and nr_jokers != 5:
 		# Remove the 'J' (joker) frequency and add its value to card with
 		# highest frequency (this is always the first in the list). If there
-		# are NO jokers ar ALL cards are jokers, hand_score is equal to
+		# are NO jokers or ALL cards are jokers, hand_score is equal to
 		# hand_score_1 (default value).
 		hand_frequencies.remove(nr_jokers)
 		hand_frequencies[0] += nr_jokers
