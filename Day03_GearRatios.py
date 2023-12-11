@@ -4,23 +4,32 @@ from math import prod
 from re import finditer
 from typing import TypeAlias
 
-tp_coordinate: TypeAlias = tuple[int, int]
-tp_partnr: TypeAlias = int
+Coordinate: TypeAlias = tuple[int, int]
 
 
 @dataclass
-class SymbolValue:
+class NumberInfo:
+	"""A number has a value and a flag indicating (after processing) if it is a
+	part nr."""
+	
+	value: int
+	is_part: bool
+
+
+@dataclass
+class SymbolInfo:
 	"""A symbol consists of a string - like '*' - and a list of all connected
-	part numbers."""
+	part numbers, used to determine if it is a gear nr."""
 
 	symbol: str
 	part_nrs: list[int]
 	
 	
 @dataclass
-class NumberKey:
-	"""A number key holds the ranges for the rows and a cols that are relevant
-	for checking for symbols."""
+class RowColRanges:
+	"""This is used as key in the numbers table. The row_range and col_range
+	are (ordered and consequtive) row nrs and col nrs that must be checked to
+	determine if a number is a part nr."""
 	
 	row_range: tuple[int, ...]
 	col_range: tuple[int, ...]
@@ -31,80 +40,79 @@ class NumberKey:
 		return hash((self.row_range, self.col_range))
 
 
-numbers_dict: TypeAlias = dict[NumberKey, tp_partnr]
-symbols_dict: TypeAlias = dict[tp_coordinate, SymbolValue]
+NumbersDict: TypeAlias = dict[RowColRanges, NumberInfo]
+SymbolsDict: TypeAlias = dict[Coordinate, SymbolInfo]
 
 
-def add_symbols(line: str, line_nr: int, symbols: symbols_dict) -> None:
-	"""todo: add docstr"""
+def add_symbols(line: str, line_nr: int, symbols: SymbolsDict) -> None:
+	"""Add an entry to the symbols table for all nrs on line. Each entry has a
+	coordinate as its key. The value is a SymbolInfo consisting of a single
+	char (the symbol) and an empty list (to store adjacent nrs, if any, during
+	processing)."""
 
 	matches = finditer(r"[^.0-9\n]", line)
 	for match in matches:
-		coordinate = (line_nr, match.start())
+		coordinate = line_nr, match.start()
 		symbol = match.string[match.start():match.end()]
-		symbols[coordinate] = SymbolValue(symbol, [])
+		symbols[coordinate] = SymbolInfo(symbol, [])
 
 
-def add_numbers(line: str, line_nr: int, numbers: numbers_dict) -> None:
-	"""todo: add docstr"""
+def add_numbers(line: str, line_nr: int, numbers: NumbersDict) -> None:
+	"""Add an entry to the numbers table for all nrs on line. Each entry has a
+	RowColRanges as key, consisting of a tuple with all (ordered) row nrs and a
+	tuple with all (ordered) column nrs that must be verified for symbols when
+	deciding if the number is a part number. The value is a NumberInfo object
+	storing the value and a flag for storing whether it's a part number."""
 
 	matches = finditer(r"[0-9]+", line)
 	for match in matches:
 		
-		rows_range = tuple(range(line_nr - 1, line_nr + 2))
+		rows_range = line_nr - 1, line_nr, line_nr + 1
 		cols_range = tuple(range(match.start() - 1, match.end() + 1))
-		number_key = NumberKey(rows_range, cols_range)
-		number_value = int(match.string[match.start():match.end()])
+		number_key = RowColRanges(rows_range, cols_range)
+		number_value = int(match.string[match.start():match.end()], False)
 		
-		numbers[number_key] = number_value
+		numbers[number_key] = NumberInfo(number_value, is_part=False)
 
 
-def get_sum_of_part_nrs(numbers: numbers_dict,
-                        symbols: symbols_dict) -> int:
-	"""Return the sum of all part nrs. If (and only if) at the location of any
-	of the s's there is a symbol, then the number is a part nr:
-		sss ssss sssss
-		s1s s12s s123s
-		sss ssss sssss
-	The symbol's connected values list is updated with the number if any of the
-	s's is a '*'. (Any "*" that ends up with exactly 2 numbers in its connected
-	values list is a gear.)"""
-	
-	parts_sum = 0
+def process_tables(numbers: NumbersDict, symbols: SymbolsDict) -> None:
+	"""Process all data in numbers and symbols:
+	1. mark numbers as part nr if they have an adjacent symbol
+	2. add number to symbol's adjacent numbers if symbol = '*' (all symbol's
+	   with exactly two adjacent numbers are gears)."""
 
-	for pos_info, value in numbers.items():
+	for number_key, number_info in numbers.items():
 
-		is_part = False
-
-		for row in pos_info.row_range:
-			for col in pos_info.col_range:
-				if symbol_value := symbols.get((row, col)):
-					is_part = True
-					if symbol_value.symbol == "*":
-						symbol_value.part_nrs.append(value)
-
-		parts_sum += value * is_part
-	
-	return parts_sum
+		for row in number_key.row_range:
+			for col in number_key.col_range:
+				if symbol_info := symbols.get((row, col)):
+					numbers[number_key].is_part = True
+					if symbol_info.symbol == "*":
+						symbol_info.part_nrs.append(number_info.value)
 
 
 def solve() -> None:
 	"""Solve the problems, print the solutions and - if solutions are already
 	known - verify the solutions."""
 
-	numbers: numbers_dict = dict()
-	symbols: symbols_dict = dict()
+	numbers: NumbersDict = dict()
+	symbols: SymbolsDict = dict()
 
 	with (open(f"Day03_input.txt") as input_file):
 
 		for line_nr, line in enumerate(input_file):
 			add_symbols(line, line_nr, symbols)
 			add_numbers(line, line_nr, numbers)
-
-	solution_1 = get_sum_of_part_nrs(numbers, symbols)
-	solution_2 = sum(prod(symbol.part_nrs)
-	                 for symbol in symbols.values()
-	                 if symbol.symbol == "*" and len(symbol.part_nrs) == 2)
+	
+	process_tables(numbers, symbols)
+	
+	solution_1 = sum(number_info.value
+	                 for number_info in numbers.values()
+	                 if number_info.is_part)
+	solution_2 = sum(prod(symbol_info.part_nrs)
+	                 for symbol_info in symbols.values()
+	                 if symbol_info.symbol == "*"
+	                 and len(symbol_info.part_nrs) == 2)
 
 	print(solution_1, solution_2)
 	assert (solution_1, solution_2) == (527369, 73074886)

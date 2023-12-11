@@ -25,7 +25,7 @@ def solve() -> None:
 	with (open(f"Day04_input.txt") as input_file):
 		
 		for line_nr, line in enumerate(input_file, start=1):
-			# make sure nr_card_copies[line_nr] is set to 1 of no value yet.
+			# make sure nr_card_copies[line_nr] is set to 1 if no value yet.
 			nr_copies = nr_card_copies[line_nr]
 			nr_wins = nr_of_winning_nrs(line)
 
