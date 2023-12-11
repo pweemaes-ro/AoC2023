@@ -1,7 +1,7 @@
 """AoC 2023 Day 7"""
-import collections
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
+from collections import Counter
 
 Score: TypeAlias = Literal[1, 2, 3, 4, 5, 6, 7]
 frequencies_to_score: dict[tuple[int, ...], Score] = {(5,): 7,
@@ -45,7 +45,7 @@ def get_transforms(hand: str) -> tuple[str, ...]:
 def get_scores(hand: str) -> tuple[Score, Score]:
 	"""Return scores for part 1 and part 2."""
 
-	counter = collections.Counter(hand)
+	counter = Counter(hand)
 	hand_frequencies = sorted(counter.values(), reverse=True)
 
 	hand_score_1 = frequencies_to_score[tuple(hand_frequencies)]
