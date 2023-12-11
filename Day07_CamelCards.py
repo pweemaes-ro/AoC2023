@@ -1,8 +1,10 @@
 """AoC 2023 Day 7"""
 import collections
 from dataclasses import dataclass
+from typing import Literal, TypeAlias
 
-frequencies_to_score: dict[tuple[int, ...], int] = {(5,): 7,
+Score: TypeAlias = Literal[1, 2, 3, 4, 5, 6, 7]
+frequencies_to_score: dict[tuple[int, ...], Score] = {(5,): 7,
                                                     (4, 1): 6,
                                                     (3, 2): 5,
                                                     (3, 1, 1): 4,
@@ -13,16 +15,17 @@ frequencies_to_score: dict[tuple[int, ...], int] = {(5,): 7,
 
 @dataclass(order=True)
 class PokerHand:
-	"""Order of fields is relevant! Sorting will use tuple of fields in order
-	they appear in the class! Sorting will therefor be on score first, and if
-	equal, on hand (which is a converted string, see transform function!) hands
-	are sorted correctly."""
+	"""Order of fields is relevant! Default sorting will use a tuple of the
+	fields in the order in which they appear in the class: (score, hand, bid)!
+	('bid' will not be used, since all (score, hand) combinations are unique).
+	"""
 	
-	score: int      # 1 is lowest (high card), 6 is highest (5 of a kind).
+	score: Score    # 1 is lowest ('high card'), 7 is highest ('5 of a kind').
 	hand: str       # converted so it can be used for sorting
 	bid: int        # as read from file
 
 
+Game: TypeAlias = list[PokerHand]
 orders = ("23456789TJQKA", "J23456789TQKA")
 sortables = tuple({letter: chr(ord('A') + index)
                    for (index, letter) in enumerate(order)}
@@ -30,16 +33,17 @@ sortables = tuple({letter: chr(ord('A') + index)
 
 
 def get_transforms(hand: str) -> tuple[str, ...]:
-	"""Return transformed hand, which has a natural ordering, since any card
-	symbol in '23456789TJQKA' is replaced by the letter from 'ABCDEFGHIJKLM' at
-	the same index ('2' -> 'A', '3' -> 'B', ..., 'K' -> 'L', 'A' -> 'M')."""
+	"""Return transformed hands for part 1 and part 2, where each card symbol
+	in hand is replaced by a letter from "abcdefghijklm" according to
+	its weight (which is different for each part of the problem), which allows
+	for default sorting."""
 	
 	return tuple((''.join(sortable[c] for c in hand)
 	              for sortable in sortables))
 
 
-def get_scores(hand: str) -> tuple[int, int]:
-	"""Return score for the hand"""
+def get_scores(hand: str) -> tuple[Score, Score]:
+	"""Return scores for part 1 and part 2."""
 
 	counter = collections.Counter(hand)
 	hand_frequencies = sorted(counter.values(), reverse=True)
@@ -47,13 +51,14 @@ def get_scores(hand: str) -> tuple[int, int]:
 	hand_score_1 = frequencies_to_score[tuple(hand_frequencies)]
 
 	hand_score_2 = hand_score_1
-	if nr_jokers := counter.get('J', 0):
-		if nr_jokers == 5:
-			hand_score_2 = 7
-		else:
-			hand_frequencies.remove(nr_jokers)
-			hand_frequencies[0] += nr_jokers
-			hand_score_2 = frequencies_to_score[tuple(hand_frequencies)]
+	if (nr_jokers := counter.get('J', 0)) and nr_jokers != 5:
+		# Remove the 'J' (joker) frequency and add its value to card with
+		# highest frequency (this is always the first in the list). If there
+		# are NO jokers ar ALL cards are jokers, hand_score is equal to
+		# hand_score_1 (default value).
+		hand_frequencies.remove(nr_jokers)
+		hand_frequencies[0] += nr_jokers
+		hand_score_2 = frequencies_to_score[tuple(hand_frequencies)]
 
 	return hand_score_1, hand_score_2
 
@@ -61,23 +66,22 @@ def get_scores(hand: str) -> tuple[int, int]:
 def solve() -> None:
 	"""Solve the problems, print the solutions and - if solutions are already
 	known - verify the solutions."""
-	
-	_hands: tuple[list[PokerHand], list[PokerHand]] = ([], [])
+
+	games: tuple[Game, Game] = ([], [])
 	solutions = [0, 0]
 
 	with (open(f"Day07_input.txt") as input_file):
 		for line in input_file.readlines():
 			hand, bid = line[:-1].split(" ")
 			scores = get_scores(hand)
-			_transforms = get_transforms(hand)
-			for (score, transform, hands) in zip(scores, _transforms, _hands):
-				hands.append(PokerHand(score, transform, int(bid)))
+			transforms = get_transforms(hand)
+			for (score, transform, game) in zip(scores, transforms, games):
+				game.append(PokerHand(score, transform, int(bid)))
 
-	for index, hands in enumerate(_hands):
-		hands.sort()
-		solutions[index] = \
-			sum(rank * hand.bid
-			    for (rank, hand) in enumerate(hands, start=1))
+	for index, game in enumerate(games):
+		game.sort()
+		solutions[index] = sum(rank * hand.bid
+		                       for (rank, hand) in enumerate(game, start=1))
 
 	print(solutions[0], solutions[1])
 	assert (solutions[0], solutions[1]) == (253313241, 253362743)
