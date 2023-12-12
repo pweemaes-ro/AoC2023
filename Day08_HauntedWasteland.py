@@ -12,7 +12,7 @@ def nr_steps(start_key: str,
              rl_deque: deque[Literal[0, 1]],
              stop_key: str | None = None) -> int:
 	"""Return nr of steps required to go from start key to stop key, or - if
-	stop key is None, the length of one cycle from start key to start key."""
+	stop key is None - the length of one cycle from start key to start key."""
 	
 	steps = 0
 	key = start_key
