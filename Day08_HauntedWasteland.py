@@ -1,6 +1,5 @@
 """AoC 2023 Day 8"""
 from collections import deque
-from collections.abc import Callable
 from math import lcm
 from re import findall
 from typing import TypeAlias, TextIO, Literal
@@ -10,18 +9,19 @@ NodesTable: TypeAlias = dict[str, tuple[str, str]]
 
 def nr_steps(start_key: str,
              nodes_table: NodesTable,
-             rl_deque: deque[Literal[0,1]],
+             rl_deque: deque[Literal[0, 1]],
              stop_key: str | None = None) -> int:
-
+	"""Return nr of steps required to go from start key to stop key, or - if
+	stop key is None, the length of one cycle from start key to start key."""
+	
 	steps = 0
 	key = start_key
-	stop_key = stop_key or start_key
 
 	while True:
 		steps += 1
 		rl_deque.append(index := rl_deque.popleft())
 		key = nodes_table[key][index]
-		if key == stop_key and steps % len(rl_deque) == 0:
+		if key == stop_key or (key == start_key and not steps % len(rl_deque)):
 			break
 	
 	return steps
