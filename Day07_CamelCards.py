@@ -4,13 +4,9 @@ from typing import Literal, TypeAlias
 from collections import Counter
 
 Score: TypeAlias = Literal[1, 2, 3, 4, 5, 6, 7]
-frequencies_to_score: dict[tuple[int, ...], Score] = {(5,): 7,
-                                                    (4, 1): 6,
-                                                    (3, 2): 5,
-                                                    (3, 1, 1): 4,
-                                                    (2, 2, 1): 3,
-                                                    (2, 1, 1, 1): 2,
-                                                    (1, 1, 1, 1, 1): 1}
+frequencies_to_score: dict[tuple[int, ...], Score] = \
+	{(5,): 7, (4, 1): 6, (3, 2): 5, (3, 1, 1): 4, (2, 2, 1): 3,
+	 (2, 1, 1, 1): 2, (1, 1, 1, 1, 1): 1}
 
 
 @dataclass(order=True)
@@ -54,7 +50,7 @@ def get_scores(hand: str) -> tuple[Score, Score]:
 	if (nr_jokers := counter.get('J', 0)) and nr_jokers != 5:
 		# Remove the 'J' (joker) frequency and add its value to card with
 		# highest frequency (this is always the first in the list). If there
-		# are NO jokers or ALL cards are jokers, hand_score is equal to
+		# are NO jokers or ALL cards are jokers, hand_score_2 is equal to
 		# hand_score_1 (default value).
 		hand_frequencies.remove(nr_jokers)
 		hand_frequencies[0] += nr_jokers
