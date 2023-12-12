@@ -147,7 +147,7 @@ def get_map_lines(input_file: TextIO) -> Map | None:
 	map_lines = []
 	
 	while len(line := input_file.readline()) > 1:
-		destination, first, length = (map(int, findall(r"[0-9]+", line)))
+		destination, first, length = map(int, findall(r"[0-9]+", line))
 		interval = Interval(first, first + length - 1)
 		map_lines.append(MapLine(interval, destination - first))
 
