@@ -85,16 +85,16 @@ def process_node_lines(input_file: TextIO) -> tuple[list[str], NodesTable]:
 	- a NodesTable object with key=KEY and value=(LEFT, RIGHT)."""
 
 	nodes_table: NodesTable = dict()
-	a_keys: list[str] = []
+	z_keys: list[str] = []
 	
 	while node_line := input_file.readline():
 		key, left, right = findall(r"[a-zA-Z]{3}", node_line)
 		nodes_table[key] = (left, right)
 		
 		if key[-1] == 'Z':
-			a_keys.append(key)
+			z_keys.append(key)
 
-	return a_keys, nodes_table
+	return z_keys, nodes_table
 
 
 def solve() -> None:
