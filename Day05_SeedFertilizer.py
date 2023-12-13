@@ -6,6 +6,15 @@ from re import findall
 from typing import TextIO
 
 
+# todo: This could be done slightly more efficient if you use a bisect (a list
+#       that is automagically always sorted after an item is added or deleted.
+#       Then you could iterate over de sorted intervals and the Map's MapLines
+#       in one loop, moving forward by incrementing index of Map's Maplines.
+#       You'd have to remove processed intervals from the bisect list and work
+#       with the first item until the list is empty, since otherwise you'd get
+#       in trouble iterating over a list that's modified inside the loop. Also
+#       you'd have to put the resulting destination intervals in a bisect list.
+
 @dataclass(order=True)
 class Interval:
 	"""An Interval is bounded by a first and last integer. These and all
