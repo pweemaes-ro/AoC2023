@@ -7,94 +7,63 @@ from typing import TypeAlias, TextIO, Literal
 NodesTable: TypeAlias = dict[str, tuple[str, str]]
 
 
-def nr_steps(start_key: str,
-             nodes_table: NodesTable,
-             rl_deque: deque[Literal[0, 1]],
-             stop_key: str | None = None) -> int:
-	"""Return nr of steps required to go from start key to stop key, or - if
-	stop key is None - the length of one cycle from start key to start key."""
+# This solution takes full advantage of the following discoveries (that can
+# easily be veried programmatically):
+# 1. The length n[i] of the path from A-node A[i] to nearest Z-node Z[j] is
+#    equal to that of the Z[j]-cycle (path from Z[j] to Z[j]), and n[i] is a
+#    multiple of the length of the left/right instructions cycle.
+# 2. There are no other A-nodes in the path from A[i] to Z[j].
+# 3. There are no other A-nodes or Z-nodes in the Z[j]-cycle.
+# This means that all A[i] -> Z[j] -> Z[j] are disjunct. It also implies that
+# there is no need for ever resetting the deque that cycles through the
+# left/right instructions. Then the answer for part 2 is the LCM of all n[i]
+# values.
+
+def get_nr_steps(start_keys: tuple[str, ...],
+                 stop_keys: tuple[str, ...],
+                 nodes_table: NodesTable,
+                 rl_deque: deque[Literal[0, 1]]) -> list[int]:
+	"""Return a list of steps[i] required to go from start_key[i] to
+	stop_keys[i] for all start keys in start_keys."""
 	
 	steps = 0
-	key = start_key
+	keys = start_keys
+	nr_keys = len(keys)
+	retvals = [0] * nr_keys
+	retvals_set = 0
 
 	while True:
 		steps += 1
 		rl_deque.append(index := rl_deque.popleft())
-		key = nodes_table[key][index]
-		if key == stop_key or (key == start_key and not steps % len(rl_deque)):
-			break
-	
-	return steps
+		keys = tuple(nodes_table[key][index] for key in keys)
+		
+		for idx, (key, stop_key, retval) in \
+			enumerate(zip(keys, stop_keys, retvals)):
+			if not retval and key == stop_key:
+				retvals[idx] = steps
+				retvals_set += 1
+				if retvals_set == nr_keys:
+					return retvals
 
 
-# def nr_steps_old(start_key: str,
-#                  stop_condition: Callable[[str], bool],
-#                  nodes_table: NodesTable,
-#                  rl_deque: deque[Literal[0, 1]]) -> int:
-# 	"""Return nr of steps required to get from start_key to a key that
-# 	satisfies the stop condition."""
-#
-# 	# IMPORTANT NOTE: Since none of the part 2 stop-keys have a left or right
-# 	# child equal to the start key, it seems a lucky coincident that the
-# 	# solution for part 2 was right. In fact we should be looking for TWO times
-# 	# the same stop-key to determine the nr of steps in a cycle...
-#
-# 	key = start_key
-#
-# 	while not stop_condition(key):
-# 		rl_deque.append(index := rl_deque.popleft())
-# 		key = nodes_table[key][index]
-#
-# 	# The following conditions are met:
-# 	# - the nr of steps from start key to stop key (the first key satisfying
-# 	#   the stop condition) is equal to the nr of steps from the first stop
-# 	#   key's occurance to the next occurance of the same stop key, AND
-# 	# - this nr of steps is an EXACT multiple of the nr or left/right
-# 	#   instructions.
-# 	# Therefore the nr of steps from start key to stop key (as could be counted
-# 	# in the first loop) IS the nr of steps in one period for the given
-# 	# stop-key. Then the LCM of the nr of steps for each of the six different
-# 	# keys starting with an 'A' is the solution to part 2.
-# 	#
-# 	# Had the condition not been met, the algorithm would have been a bit more
-# 	# complicated and time-consuming...
-# 	# In fact we could have ignored the given start keys and use each of the
-# 	# six keys ending with 'Z' as stop_key, skipping the first loop, and only
-# 	# execute the second loop. SEE NEW VERSION of nr_steps function above!
-#
-# 	steps = 1
-# 	stop_key = key
-# 	while True:
-# 		rl_deque.append(index := rl_deque.popleft())
-# 		key = nodes_table[key][index]
-# 		if key == stop_key and steps % len(rl_deque) == 0:
-# 			# notice that when steps % len(rl_deque) == 0 also the next child
-# 			# (left or right) will be the same as at start of loop, so we don't
-# 			# have to check this.
-# 			break
-# 		else:
-# 			steps += 1
-#
-# 	return steps
-
-
-def process_node_lines(input_file: TextIO) -> tuple[list[str], NodesTable]:
+def process_node_lines(input_file: TextIO) -> (
+	tuple)[tuple[str, ...], NodesTable]:
 	"""Process all node lines in input_file. Each line has format
 	"KEY = (LEFT, RIGHT)". Return tuple containing
-	- a (unordered) list of all KEY's found that end with an 'A',
+	- a tuple of all KEY's found that end with an 'A',
 	- a NodesTable object with key=KEY and value=(LEFT, RIGHT)."""
 
 	nodes_table: NodesTable = dict()
-	z_keys: list[str] = []
+	z_keys: set[str] = set()
 	
 	while node_line := input_file.readline():
 		key, left, right = findall(r"[a-zA-Z]{3}", node_line)
 		nodes_table[key] = (left, right)
 		
 		if key[-1] == 'Z':
-			z_keys.append(key)
+			z_keys.add(key)
 
-	return z_keys, nodes_table
+	return tuple(z_keys), nodes_table
 
 
 def solve() -> None:
@@ -105,22 +74,14 @@ def solve() -> None:
 		# noinspection PyTypeChecker
 		right_left_idxs: list[Literal[0, 1]] = \
 			[1 if c == 'R' else 0 for c in input_file.readline()[:-1]]
-		input_file.readline()   # skip empty line
-		
+		input_file.readline()  # skip empty line
 		z_keys, key_nodes = process_node_lines(input_file)
 	
 	rl_deque = deque(right_left_idxs)
-	solution_1 = nr_steps("AAA", key_nodes, rl_deque, "ZZZ")
-	
-	# Re-initializing the rl_deque before starting part 2 is not strictly
-	# required, since the nr of steps in part 1 is (by lucky concidence) an
-	# exact multiple of the (constant) nr of items in the rl_deque! We do the
-	# re-init here only for the sake of completeness...
-	rl_deque = deque(right_left_idxs)
-	# It is NOT necessary to re-init rl_deque between different keys in part 2,
-	# since the nr of steps for each key is guaranteed (by nr_steps) to be an
-	# EXACT multiple of the (constant) nr of items in the rl_deque.
-	factors = list(nr_steps(key, key_nodes, rl_deque) for key in z_keys)
+
+	solution_1 = get_nr_steps(("AAA",), ("ZZZ",), key_nodes, rl_deque)[0]
+
+	factors = get_nr_steps(z_keys, z_keys, key_nodes, rl_deque)
 	solution_2 = lcm(*factors)
 	
 	print(solution_1, solution_2)
