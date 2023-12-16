@@ -28,7 +28,7 @@ class SymbolInfo:
 @dataclass
 class RowColRanges:
 	"""This is used as key in the numbers table. The row_range and col_range
-	are (ordered and consequtive) row nrs and col nrs that must be checked to
+	are (ordered and consecutive) row nrs and col nrs that must be checked to
 	determine if a number is a part nr."""
 	
 	row_range: tuple[int, ...]
@@ -45,7 +45,7 @@ SymbolsDict: TypeAlias = dict[Coordinate, SymbolInfo]
 
 
 def add_symbols(line: str, line_nr: int, symbols: SymbolsDict) -> None:
-	"""Add an entry to the symbols table for all nrs on line. Each entry has a
+	"""Add an entry to the symbols table for all nrs online. Each entry has a
 	coordinate as its key. The value is a SymbolInfo consisting of a single
 	char (the symbol) and an empty list (to store adjacent nrs, if any, during
 	processing)."""
@@ -58,7 +58,7 @@ def add_symbols(line: str, line_nr: int, symbols: SymbolsDict) -> None:
 
 
 def add_numbers(line: str, line_nr: int, numbers: NumbersDict) -> None:
-	"""Add an entry to the numbers table for all nrs on line. Each entry has a
+	"""Add an entry to the numbers table for all nrs online. Each entry has a
 	RowColRanges as key, consisting of a tuple with all (ordered) row nrs and a
 	tuple with all (ordered) column nrs that must be verified for symbols when
 	deciding if the number is a part number. The value is a NumberInfo object
