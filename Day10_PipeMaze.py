@@ -1,7 +1,7 @@
 """AoC 2023 Day 10"""
 from __future__ import annotations
 
-from enum import Enum, IntEnum, StrEnum, auto
+from enum import IntEnum, StrEnum, auto
 from math import ceil
 from typing import Any, Callable, cast, TypeAlias
 
@@ -11,10 +11,10 @@ from typing import Any, Callable, cast, TypeAlias
 class Pipe(StrEnum):
 	"""All pipe chars. DO NOT USE string literals, use Pipe enum!"""
 	
-	UPPER_LEFT_CORNER = "F"
-	UPPER_RIGHT_CORNER = "7"
-	LOWER_LEFT_CORNER = "L"
-	LOWER_RIGHT_CORNER = "J"
+	UL_CORNER = "F"
+	UR_CORNER = "7"
+	LL_CORNER = "L"
+	LR_CORNER = "J"
 	VERTICAL = "|"
 	HORIZONTAL = "-"
 
@@ -22,66 +22,31 @@ class Pipe(StrEnum):
 class PrintablePipe(StrEnum):
 	"""All PREFERED pipe chars. DO NOT USE string literals, use Pipe enum!"""
 
-	UPPER_LEFT_CORNER = "┌"
-	UPPER_RIGHT_CORNER = "┐"
-	LOWER_LEFT_CORNER = "└"
-	LOWER_RIGHT_CORNER = "┘"
+	UL_CORNER = "┌"
+	UR_CORNER = "┐"
+	LL_CORNER = "└"
+	LR_CORNER = "┘"
 	VERTICAL = "│"
 	HORIZONTAL = "─"
 
 
 transform_table = dict(zip(Pipe, PrintablePipe))
 
-connected_below_symbols = (Pipe.VERTICAL,
-                           Pipe.UPPER_LEFT_CORNER,
-                           Pipe.UPPER_RIGHT_CORNER)
-
-connected_above_symbols = (Pipe.VERTICAL,
-                           Pipe.LOWER_LEFT_CORNER,
-                           Pipe.LOWER_RIGHT_CORNER)
-
-connected__left_symbols = (Pipe.HORIZONTAL,
-                           Pipe.UPPER_RIGHT_CORNER,
-                           Pipe.LOWER_RIGHT_CORNER)
-
-connected_right_symbols = (Pipe.HORIZONTAL,
-                           Pipe.UPPER_LEFT_CORNER,
-                           Pipe.LOWER_LEFT_CORNER)
-
-
-class Direction(Enum):
-	"""Each direction has as value a tuple (delta_x, delta_y), the change in
-	coordinates to move to the neighbor in that direction."""
-	
-	UP = (0, -1)
-	RIGHT = (1, 0)
-	DOWN = (0, 1)
-	LEFT = (-1, 0)
-	NO_DIRECTION = (0, 0)
-
-
-direction_opposite: dict[Direction, Direction] = \
-	{Direction.UP: Direction.DOWN,
-	 Direction.DOWN: Direction.UP,
-     Direction.LEFT: Direction.RIGHT,
-     Direction.RIGHT: Direction.LEFT,
-     Direction.NO_DIRECTION: Direction.NO_DIRECTION}
-
-NoDirections = (Direction.NO_DIRECTION, Direction.NO_DIRECTION)
-
+Direction: TypeAlias = tuple[int, int]
 Directions: TypeAlias = tuple[Direction, ...]
+NoDirections = ((0, 0), (0, 0))
 
 symbol_to_directions: dict[str, Directions] = \
-	{Pipe.VERTICAL: (Direction.UP, Direction.DOWN),
-    Pipe.HORIZONTAL: (Direction.LEFT, Direction.RIGHT),
-    Pipe.LOWER_LEFT_CORNER: (Direction.RIGHT, Direction.UP),
-    Pipe.LOWER_RIGHT_CORNER: (Direction.LEFT, Direction.UP),
-    Pipe.UPPER_RIGHT_CORNER: (Direction.LEFT, Direction.DOWN),
-    Pipe.UPPER_LEFT_CORNER: (Direction.RIGHT, Direction.DOWN)}
+	{Pipe.VERTICAL: ((0, -1), (0, 1)),
+	 Pipe.HORIZONTAL: ((-1, 0), (1, 0)),
+	 Pipe.LL_CORNER: ((1, 0), (0, -1)),
+	 Pipe.LR_CORNER: ((-1, 0), (0, -1)),
+	 Pipe.UR_CORNER: ((-1, 0), (0, 1)),
+	 Pipe.UL_CORNER: ((1, 0), (0, 1))}
 
-directions_to_symbol: dict[tuple[Direction, ...], str] = \
-	{v: k for (k, v) in symbol_to_directions.items()} \
-	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
+# directions_to_symbol: dict[tuple[Direction, ...], str] = \
+# 	{v: k for (k, v) in symbol_to_directions.items()} \
+# 	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
 
 
 class LazyDirections:
@@ -131,7 +96,7 @@ class Tile:
 		"""Given incoming connection from the incoming_direction, return the out
 		direction."""
 		
-		other_out = direction_opposite[incoming_direction]
+		other_out = (-incoming_direction[0], -incoming_direction[1])
 		return self.directions[other_out == self.directions[0]]
 	
 	
@@ -145,7 +110,7 @@ class Matrix(list[list[Tile]]):
 		self.s_y: int = -1
 		for symbol_line in symbol_lines:
 			self.__add_line(symbol_line)
-		self.__set_start_directions()
+		self.__update_start_tile()
 		self.nr_pipes = 0
 		self.nr_outside = 0
 		self.nr_inside = 0
@@ -159,37 +124,45 @@ class Matrix(list[list[Tile]]):
 		if self.s_x == self.s_y == -1 and (x := line.find("S")) >= 0:
 			self.s_x = x
 			self.s_y = len(self) - 1
-			self[self.s_y][self.s_x].status = Status.PIPE
+			# self[self.s_y][self.s_x].status = Status.PIPE
 			
-	def __set_start_directions(self) -> None:
+	def __get_directions(self, x: int, y: int) -> tuple[Direction]:
+		directions = []
+
+		for connected_symbols, delta_x, delta_y in (
+			((Pipe.HORIZONTAL, Pipe.UL_CORNER, Pipe.LL_CORNER), -1, 0),
+			((Pipe.HORIZONTAL, Pipe.UR_CORNER, Pipe.LR_CORNER), 1, 0),
+			((Pipe.VERTICAL, Pipe.UL_CORNER, Pipe.UR_CORNER), 0, -1),
+			((Pipe.VERTICAL, Pipe.LL_CORNER, Pipe.LR_CORNER), 0, 1)):
+			neighbor_tile = self[y + delta_y][x + delta_x]
+			neighbor_symbol = neighbor_tile.symbol
+			if neighbor_symbol in connected_symbols:
+				directions.append((delta_x, delta_y))
+	
+		return tuple(directions)
+	
+	@staticmethod
+	def __get_symbol_from_directions(tile: Tile) -> str:
+		
+		directions_to_symbol: dict[tuple[Direction, ...], str] = \
+			{v: k for (k, v) in symbol_to_directions.items()} \
+			| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
+		
+		return directions_to_symbol[tile.directions]
+	
+	def __update_start_tile(self) -> None:
 		"""Set the directions of the Tile at the location of "S"."""
 
-		s_directions = []
+		s_tile = self[self.s_y][self.s_x]
 
-		x = self.s_x
-
-		y = self.s_y - 1
-		if self[y][x].symbol in connected_below_symbols:
-			s_directions.append(Direction.UP)
-		
-		y = self.s_y + 1
-		if self[y][x].symbol in connected_above_symbols:
-			s_directions.append(Direction.DOWN)
-		
-		y = self.s_y
-		if len(s_directions) < 2:
-			x = self.s_x + 1
-			if self[y][x].symbol in connected__left_symbols:
-				s_directions.append(Direction.RIGHT)
-		
-		if len(s_directions) < 2:
-			x = self.s_x - 1
-			if self[y][x].symbol in connected_right_symbols:
-				s_directions.append(Direction.LEFT)
-		
-		self[self.s_y][self.s_x].directions = tuple(s_directions)
-		self[self.s_y][self.s_x].symbol = \
-			directions_to_symbol[self[self.s_y][self.s_x].directions]
+		s_tile.status = Status.PIPE
+		s_tile.directions = self.__get_directions(self.s_x, self.s_y)
+		s_tile.symbol = self.__get_symbol_from_directions(s_tile)
+		# directions_to_symbol: dict[tuple[Direction, ...], str] = \
+		# 	{v: k for (k, v) in symbol_to_directions.items()} \
+		# 	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
+		#
+		# s_tile.symbol = directions_to_symbol[s_tile.directions]
 	
 	def _print_circuit(self, start_line: int = 0, stop_line: int = -1) -> None:
 
@@ -218,8 +191,8 @@ class Matrix(list[list[Tile]]):
 		self.nr_pipes = 1
 		
 		while True:
-			x += exit_direction.value[0]
-			y += exit_direction.value[1]
+			x += exit_direction[0]
+			y += exit_direction[1]
 			
 			if (x, y) == (self.s_x, self.s_y):
 				return ceil(self.nr_pipes / 2)
@@ -242,9 +215,9 @@ class Matrix(list[list[Tile]]):
 				match tile.symbol:
 					case Pipe.VERTICAL:
 						above = below = not below
-					case Pipe.UPPER_LEFT_CORNER | Pipe.UPPER_RIGHT_CORNER:
+					case Pipe.UL_CORNER | Pipe.UR_CORNER:
 						below = not below
-					case Pipe.LOWER_LEFT_CORNER | Pipe.LOWER_RIGHT_CORNER:
+					case Pipe.LL_CORNER | Pipe.LR_CORNER:
 						above = not above
 
 			elif above:
