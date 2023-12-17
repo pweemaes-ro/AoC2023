@@ -1,26 +1,11 @@
 """AoC 2023 Day 10"""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import Enum, IntEnum, StrEnum
+from enum import Enum, IntEnum, StrEnum, auto
 from math import ceil
 from typing import Any, Callable, cast, TypeAlias
-from logging import INFO, basicConfig, getLogger
 
-
-@dataclass
-class CoordinatePair:
-	"""A simple dataclass prefered over tuple of two ints..."""
-	
-	x: int
-	y: int
-
-	def __hash__(self) -> int:
-		return hash((self.x, self.y))
-
-
-basicConfig(filename=__name__ + ".log", level=INFO, filemode="w")
-logger = getLogger(__name__)
+# todo: Put as much as possible in a dataclass enum...
 
 
 class _Pipe(StrEnum):
@@ -56,11 +41,11 @@ connected_above_symbols = (Pipe.VERTICAL,
                            Pipe.LOWER_LEFT_CORNER,
                            Pipe.LOWER_RIGHT_CORNER)
 
-connected__left_symbols = (Pipe.VERTICAL,
+connected__left_symbols = (Pipe.HORIZONTAL,
                            Pipe.UPPER_RIGHT_CORNER,
                            Pipe.LOWER_RIGHT_CORNER)
 
-connected_right_symbols = (Pipe.VERTICAL,
+connected_right_symbols = (Pipe.HORIZONTAL,
                            Pipe.UPPER_LEFT_CORNER,
                            Pipe.LOWER_LEFT_CORNER)
 
@@ -99,10 +84,6 @@ directions_to_symbol: dict[tuple[Direction, ...], str] = \
 	{v: k for (k, v) in symbol_to_directions.items()} \
 	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
 
-# for k, v in directions_to_symbol.items():
-# 	print(k, v)
-# exit()
-
 
 class LazyDirections:
 	"""todo: add docstring."""
@@ -122,10 +103,9 @@ class LazyDirections:
 class Status(IntEnum):
 	"""Status for a Tile."""
 	
-	UNKNOWN = -1
-	PIPE = 2
-	OUTSIDE = 0
-	INSIDE = 1
+	UNKNOWN = auto()
+	INSIDE = auto()
+	PIPE = auto()
 
 
 class Tile:
@@ -217,30 +197,16 @@ class Matrix(list[list[Tile]]):
 		if stop_line == -1:
 			stop_line = len(self)
 
-		# print("*" * 142)
-		outsides = pipes = unknowns = 0
 		for y, line in enumerate(self[start_line: stop_line]):
-			# print("*", end='')
 			for x, me in enumerate(line):
-				if x == self.s_x and y == self.s_y:
-					print("S", end='')
-					pipes += 1
-				elif me.status == Status.INSIDE:
+				if me.status == Status.INSIDE:
 					print("1", end='')
-					outsides += 1
 				elif me.status == Status.PIPE:
 					print(me.symbol, end='')
-					pipes += 1
-				elif me.status == Status.OUTSIDE:
-					print('0', end='')
-					# print('█', end='')
 				else:
 					print(' ', end='')
-					unknowns += 1
 			print()
-		# print("*" * 142)
 
-	
 	def count_steps_to_farthest(self) -> int:
 		"""Return the nr of steps to get to the farthest tile in the closed
 		loop starting at the tile marked with 'S'."""
@@ -264,20 +230,15 @@ class Matrix(list[list[Tile]]):
 			self[y][x].status = Status.PIPE
 			exit_direction = self[y][x].get_exit_direction(exit_direction)
 	
-	def process_line(self, line: list[Tile]) -> int:
+	@staticmethod
+	def process_line(line: list[Tile]) -> int:
 		"""Set tiles that are not pipe to inside or outside. Return number of
 		tiles that was set to INSIDE."""
-		
-		# Assumes each line starts with an OUTSIDE tile.
 		
 		above = below = False
 		nr_inside = 0
 		
 		for tile in line:
-			if tile.status == Status.UNKNOWN:
-				tile.status = above
-				nr_inside += tile.status
-			
 			if tile.status == Status.PIPE:
 				match tile.symbol:
 					case Pipe.VERTICAL:
@@ -286,7 +247,11 @@ class Matrix(list[list[Tile]]):
 						below = not below
 					case Pipe.LOWER_LEFT_CORNER | Pipe.LOWER_RIGHT_CORNER:
 						above = not above
-		
+
+			elif above:
+				tile.status = Status.INSIDE
+				nr_inside += 1
+			
 		return nr_inside
 	
 	def count_inside_tiles(self) -> int:
@@ -294,6 +259,7 @@ class Matrix(list[list[Tile]]):
 		
 		return sum(self.process_line(line) for line in self)
 	
+
 def solve() -> None:
 	"""Solve the problems, print the solutions and - if solutions are already
 	known - verify the solutions."""
@@ -307,6 +273,7 @@ def solve() -> None:
 	print(solution_1, solution_2)
 	assert (solution_1, solution_2) == (6757, 523)
 	matrix._print_circuit()
+	
 
 if __name__ == "__main__":
 	solve()
