@@ -1,6 +1,4 @@
 """AoC 2023 Day 10"""
-from __future__ import annotations
-
 from enum import IntEnum, StrEnum, auto
 from math import ceil
 from typing import TypeAlias
@@ -19,8 +17,8 @@ class Pipe(StrEnum):
 
 Direction: TypeAlias = tuple[int, int]
 Directions: TypeAlias = tuple[Direction, Direction]
-NoDirections = ((0, 0), (0, 0))
-symbol_to_directions: dict[str, Directions] = \
+
+pipe_to_directions: dict[str, Directions] = \
 	{Pipe.VERTICAL: ((0, -1), (0, 1)),
 	 Pipe.HORIZONTAL: ((-1, 0), (1, 0)),
 	 Pipe.LL_CORNER: ((1, 0), (0, -1)),
@@ -32,7 +30,6 @@ symbol_to_directions: dict[str, Directions] = \
 class TileStatus(IntEnum):
 	"""TileStatus for a Tile."""
 	
-	UNKNOWN = auto()
 	INSIDE = auto()
 	PIPE = auto()
 
@@ -44,16 +41,16 @@ class Tile:
 	
 	def __init__(self, symbol: str):
 		self.symbol = symbol
-		self.status = TileStatus.UNKNOWN
-		self._directions = NoDirections
+		self.status: TileStatus | None = None
+		self._directions: Directions | None = None
 
 	@property
 	def directions(self) -> Directions:
-		"""This is calculated only once, when requested, and never changes."""
+		"""This is calculated only once, when requested, and never changes.
+		Assumes tile has a pipe symbol!"""
 		
-		if self._directions == NoDirections:
-			self._directions = \
-				symbol_to_directions.get(self.symbol, NoDirections)
+		if not self._directions:
+			self._directions = pipe_to_directions[self.symbol]
 		return self._directions
 	
 	@directions.setter
@@ -77,8 +74,8 @@ class Matrix(list[list[Tile]]):
 
 	line_symbols: dict[str, str] = dict()
 	directions_to_symbol: dict[tuple[Direction, Direction], str] = \
-		{v: k for (k, v) in symbol_to_directions.items()} \
-		| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
+		{v: k for (k, v) in pipe_to_directions.items()} \
+		| {(v[1], v[0]): k for (k, v) in pipe_to_directions.items()}
 	
 	def __init__(self, symbol_lines: list[str], printable: bool = False) \
 		-> None:
@@ -106,7 +103,7 @@ class Matrix(list[list[Tile]]):
 		"""Add line to the matrix (also check for and set for start
 		location)."""
 		
-		self.append([Tile(c) for c in line[:-1]])
+		self.append([Tile(c) for c in line])
 
 		if self.s_x == self.s_y == -1 and (x := line.find("S")) >= 0:
 			self.s_x = x
@@ -129,8 +126,8 @@ class Matrix(list[list[Tile]]):
 	
 		return directions[0], directions[1]
 	
-	def __get_s_symbol(self) -> str:
-		"""Return the symbol for the start location, given its directions."""
+	def __get_s_pipe(self) -> str:
+		"""Return the pipe for the start location, given its directions."""
 		
 		tile = self[self.s_y][self.s_x]
 		return self.directions_to_symbol[tile.directions]
@@ -142,7 +139,7 @@ class Matrix(list[list[Tile]]):
 
 		s_tile.status = TileStatus.PIPE
 		s_tile.directions = self.__get_s_directions()
-		s_tile.symbol = self.__get_s_symbol()
+		s_tile.symbol = self.__get_s_pipe()
 	
 	def print_circuit(self, start_line: int = 0, stop_line: int = -1) -> None:
 		"""Prints the circuit. Inner tiles will only be distinguishable if
@@ -157,10 +154,10 @@ class Matrix(list[list[Tile]]):
 					print("█", end='')  # █ = alt-219
 				elif me.status == TileStatus.PIPE:
 					if self.line_symbols:
-						symbol = self.line_symbols.get(me.symbol, me.symbol)
+						pipe = self.line_symbols.get(me.symbol, me.symbol)
 					else:
-						symbol = me.symbol
-					print(symbol, end='')
+						pipe = me.symbol
+					print(pipe, end='')
 				else:
 					print(' ', end='')
 			print()
@@ -170,9 +167,7 @@ class Matrix(list[list[Tile]]):
 		loop starting at the tile marked with 'S'."""
 		
 		x, y = self.s_x, self.s_y
-		tile = self[y][x]
-		direction = tile.directions[1]  # tile.directions[0] should also work!
-		
+		direction = self[y][x].directions[1]  # directions[0] should also work!
 		nr_pipes = 1    # 'S' is a pipe!
 		
 		while True:
@@ -191,22 +186,23 @@ class Matrix(list[list[Tile]]):
 		"""Set status for tiles on line that are inside the closed loop to
 		TileStatus.INSIDE. Return number of tiles that was set."""
 		
-		above = below = False
+		inside_above = inside_below = False
 		nr_inside = 0
 		
 		for tile in line:
 			if tile.status == TileStatus.PIPE:
 				match tile.symbol:
 					case Pipe.VERTICAL:
-						above = below = not below
+						inside_above = inside_below = not inside_below
 					case Pipe.UL_CORNER | Pipe.UR_CORNER:
-						below = not below
+						inside_below = not inside_below
 					case Pipe.LL_CORNER | Pipe.LR_CORNER:
-						above = not above
+						inside_above = not inside_above
 
-			elif above:
+			elif inside_above:
+				# assert inside_below == inside_above
 				if printable:
-					tile.status = TileStatus.INSIDE   # no need, unless printing...
+					tile.status = TileStatus.INSIDE   # required for printing...
 				nr_inside += 1
 			
 		return nr_inside
