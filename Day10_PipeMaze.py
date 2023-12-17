@@ -3,9 +3,7 @@ from __future__ import annotations
 
 from enum import IntEnum, StrEnum, auto
 from math import ceil
-from typing import Any, Callable, cast, TypeAlias
-
-# todo: Put as much as possible in a dataclass enum...
+from typing import TypeAlias
 
 
 class Pipe(StrEnum):
@@ -19,23 +17,9 @@ class Pipe(StrEnum):
 	HORIZONTAL = "-"
 
 
-class PrintablePipe(StrEnum):
-	"""All PREFERED pipe chars. DO NOT USE string literals, use Pipe enum!"""
-
-	UL_CORNER = "┌"
-	UR_CORNER = "┐"
-	LL_CORNER = "└"
-	LR_CORNER = "┘"
-	VERTICAL = "│"
-	HORIZONTAL = "─"
-
-
-transform_table = dict(zip(Pipe, PrintablePipe))
-
 Direction: TypeAlias = tuple[int, int]
-Directions: TypeAlias = tuple[Direction, ...]
+Directions: TypeAlias = tuple[Direction, Direction]
 NoDirections = ((0, 0), (0, 0))
-
 symbol_to_directions: dict[str, Directions] = \
 	{Pipe.VERTICAL: ((0, -1), (0, 1)),
 	 Pipe.HORIZONTAL: ((-1, 0), (1, 0)),
@@ -44,28 +28,9 @@ symbol_to_directions: dict[str, Directions] = \
 	 Pipe.UR_CORNER: ((-1, 0), (0, 1)),
 	 Pipe.UL_CORNER: ((1, 0), (0, 1))}
 
-# directions_to_symbol: dict[tuple[Direction, ...], str] = \
-# 	{v: k for (k, v) in symbol_to_directions.items()} \
-# 	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
 
-
-class LazyDirections:
-	"""todo: add docstring."""
-	
-	def __init__(self, function: Callable[[Tile], Directions]) -> None:
-		self.function = function
-		self.name = function.__name__
-		
-	def __set_name__(self, owner: Any, name: str) -> None:
-		self.name = name
-	
-	def __get__(self, obj: Any, parent_type: Any) -> Directions:
-		obj.__dict__[self.name] = self.function(obj)
-		return cast(Directions, obj.__dict__[self.name])
-
-
-class Status(IntEnum):
-	"""Status for a Tile."""
+class TileStatus(IntEnum):
+	"""TileStatus for a Tile."""
 	
 	UNKNOWN = auto()
 	INSIDE = auto()
@@ -75,35 +40,48 @@ class Status(IntEnum):
 class Tile:
 	"""The Matrix holds a list of 'lines' (lists) of Tile objects. Status is
 	set to PIPE in Matrix.get_steps_to_farthest() if Tile is part of the
-	closed circuit, and to OUTSIDE in Matrix.get_enclosed_tiles() if Tile is
-	NOT a PIPE and NOT enclosed."""
+	closed circuit."""
 	
 	def __init__(self, symbol: str):
 		self.symbol = symbol
-		self.status = Status.UNKNOWN
+		self.status = TileStatus.UNKNOWN
+		self._directions = NoDirections
 
-	# NOTE: since we're only interested in directions of entries that are part
-	# of the closed circuit, we do not initialize them immediately, but only
-	# when really needed ('lazy' property), and then it's value is set once and
-	# only once!
-	@LazyDirections
+	@property
 	def directions(self) -> Directions:
-		"""Return the directions for the symbol."""
+		"""This is calculated only once, when requested, and never changes."""
+		
+		if self._directions == NoDirections:
+			self._directions = \
+				symbol_to_directions.get(self.symbol, NoDirections)
+		return self._directions
 	
-		return symbol_to_directions.get(self.symbol, NoDirections)
-
+	@directions.setter
+	def directions(self, directions: Directions) -> None:
+		self._directions = directions
+	
 	def get_exit_direction(self, incoming_direction: Direction) -> Direction:
-		"""Given incoming connection from the incoming_direction, return the out
-		direction."""
+		"""Given a connection coming in from incoming direction, return the
+		direction of the tile's exit. Example: Suppose tile has connections in
+		the directions left and up. If a connection comes in with direction
+		down, it is connecting to the tile's up connection. The exit direction
+		is then the tile's other direction: left."""
 		
 		other_out = (-incoming_direction[0], -incoming_direction[1])
 		return self.directions[other_out == self.directions[0]]
 	
 	
 class Matrix(list[list[Tile]]):
-	"""todo: add docstring."""
+	"""A Matrix holds a collection of lines of tiles. It also has functions to
+	solve the problem."""
+
+	line_symbols: dict[str, str] = dict()
+	directions_to_symbol: dict[tuple[Direction, Direction], str] = \
+		{v: k for (k, v) in symbol_to_directions.items()} \
+		| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
 	
-	def __init__(self, symbol_lines: list[str]) -> None:
+	def __init__(self, symbol_lines: list[str], printable: bool = False) \
+		-> None:
 		
 		super().__init__()
 		self.s_x: int = -1
@@ -111,10 +89,19 @@ class Matrix(list[list[Tile]]):
 		for symbol_line in symbol_lines:
 			self.__add_line(symbol_line)
 		self.__update_start_tile()
-		self.nr_pipes = 0
-		self.nr_outside = 0
-		self.nr_inside = 0
-		
+		if printable:
+			class PrintablePipe(StrEnum):
+				"""Use these chars to make a nice print of the loop."""
+				
+				UL_CORNER = "┌"
+				UR_CORNER = "┐"
+				LL_CORNER = "└"
+				LR_CORNER = "┘"
+				VERTICAL = "│"
+				HORIZONTAL = "─"
+			
+			self.line_symbols = dict(zip(Pipe, PrintablePipe))
+			
 	def __add_line(self, line: str) -> None:
 		"""Add line to the matrix (also check for and set for start
 		location)."""
@@ -124,9 +111,10 @@ class Matrix(list[list[Tile]]):
 		if self.s_x == self.s_y == -1 and (x := line.find("S")) >= 0:
 			self.s_x = x
 			self.s_y = len(self) - 1
-			# self[self.s_y][self.s_x].status = Status.PIPE
 			
-	def __get_directions(self, x: int, y: int) -> tuple[Direction]:
+	def __get_s_directions(self) -> Directions:
+		"""Return directions of 'S'-tile, given pipes of its neighores."""
+		
 		directions = []
 
 		for connected_symbols, delta_x, delta_y in (
@@ -134,47 +122,45 @@ class Matrix(list[list[Tile]]):
 			((Pipe.HORIZONTAL, Pipe.UR_CORNER, Pipe.LR_CORNER), 1, 0),
 			((Pipe.VERTICAL, Pipe.UL_CORNER, Pipe.UR_CORNER), 0, -1),
 			((Pipe.VERTICAL, Pipe.LL_CORNER, Pipe.LR_CORNER), 0, 1)):
-			neighbor_tile = self[y + delta_y][x + delta_x]
+			neighbor_tile = self[self.s_y + delta_y][self.s_x + delta_x]
 			neighbor_symbol = neighbor_tile.symbol
 			if neighbor_symbol in connected_symbols:
 				directions.append((delta_x, delta_y))
 	
-		return tuple(directions)
+		return directions[0], directions[1]
 	
-	@staticmethod
-	def __get_symbol_from_directions(tile: Tile) -> str:
+	def __get_s_symbol(self) -> str:
+		"""Return the symbol for the start location, given its directions."""
 		
-		directions_to_symbol: dict[tuple[Direction, ...], str] = \
-			{v: k for (k, v) in symbol_to_directions.items()} \
-			| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
-		
-		return directions_to_symbol[tile.directions]
+		tile = self[self.s_y][self.s_x]
+		return self.directions_to_symbol[tile.directions]
 	
 	def __update_start_tile(self) -> None:
-		"""Set the directions of the Tile at the location of "S"."""
+		"""Set the status, directions and symbol of the 'S'-tile."""
 
 		s_tile = self[self.s_y][self.s_x]
 
-		s_tile.status = Status.PIPE
-		s_tile.directions = self.__get_directions(self.s_x, self.s_y)
-		s_tile.symbol = self.__get_symbol_from_directions(s_tile)
-		# directions_to_symbol: dict[tuple[Direction, ...], str] = \
-		# 	{v: k for (k, v) in symbol_to_directions.items()} \
-		# 	| {(v[1], v[0]): k for (k, v) in symbol_to_directions.items()}
-		#
-		# s_tile.symbol = directions_to_symbol[s_tile.directions]
+		s_tile.status = TileStatus.PIPE
+		s_tile.directions = self.__get_s_directions()
+		s_tile.symbol = self.__get_s_symbol()
 	
-	def _print_circuit(self, start_line: int = 0, stop_line: int = -1) -> None:
-
+	def print_circuit(self, start_line: int = 0, stop_line: int = -1) -> None:
+		"""Prints the circuit. Inner tiles will only be distinguishable if
+		printable=True when creating the matrix."""
+		
 		if stop_line == -1:
 			stop_line = len(self)
 
 		for y, line in enumerate(self[start_line: stop_line]):
 			for x, me in enumerate(line):
-				if me.status == Status.INSIDE:
-					print("1", end='')
-				elif me.status == Status.PIPE:
-					print(transform_table.get(me.symbol, me.symbol), end='')
+				if me.status == TileStatus.INSIDE:
+					print("█", end='')  # █ = alt-219
+				elif me.status == TileStatus.PIPE:
+					if self.line_symbols:
+						symbol = self.line_symbols.get(me.symbol, me.symbol)
+					else:
+						symbol = me.symbol
+					print(symbol, end='')
 				else:
 					print(' ', end='')
 			print()
@@ -185,33 +171,31 @@ class Matrix(list[list[Tile]]):
 		
 		x, y = self.s_x, self.s_y
 		tile = self[y][x]
-		# Take any of the two directions out of s_coordinate...
-		exit_direction = tile.directions[0]
+		direction = tile.directions[1]  # tile.directions[0] should also work!
 		
-		self.nr_pipes = 1
+		nr_pipes = 1    # 'S' is a pipe!
 		
 		while True:
-			x += exit_direction[0]
-			y += exit_direction[1]
+			x, y = x + direction[0], y + direction[1]
 			
 			if (x, y) == (self.s_x, self.s_y):
-				return ceil(self.nr_pipes / 2)
+				return ceil(nr_pipes / 2)
 
-			self.nr_pipes += 1
-			
-			self[y][x].status = Status.PIPE
-			exit_direction = self[y][x].get_exit_direction(exit_direction)
-	
+			nr_pipes += 1
+			tile = self[y][x]
+			tile.status = TileStatus.PIPE
+			direction = tile.get_exit_direction(direction)
+
 	@staticmethod
-	def process_line(line: list[Tile]) -> int:
-		"""Set tiles that are not pipe to inside or outside. Return number of
-		tiles that was set to INSIDE."""
+	def process_line(line: list[Tile], printable: bool = False) -> int:
+		"""Set status for tiles on line that are inside the closed loop to
+		TileStatus.INSIDE. Return number of tiles that was set."""
 		
 		above = below = False
 		nr_inside = 0
 		
 		for tile in line:
-			if tile.status == Status.PIPE:
+			if tile.status == TileStatus.PIPE:
 				match tile.symbol:
 					case Pipe.VERTICAL:
 						above = below = not below
@@ -221,7 +205,8 @@ class Matrix(list[list[Tile]]):
 						above = not above
 
 			elif above:
-				tile.status = Status.INSIDE
+				if printable:
+					tile.status = TileStatus.INSIDE   # no need, unless printing...
 				nr_inside += 1
 			
 		return nr_inside
@@ -229,7 +214,8 @@ class Matrix(list[list[Tile]]):
 	def count_inside_tiles(self) -> int:
 		"""Return total nr of INSIDE tiles."""
 		
-		return sum(self.process_line(line) for line in self)
+		return sum(self.process_line(line, bool(self.line_symbols))
+		           for line in self)
 	
 
 def solve() -> None:
@@ -237,15 +223,15 @@ def solve() -> None:
 	known - verify the solutions."""
 	
 	with open(f"Day10_input.txt") as input_file:
-		matrix = Matrix(input_file.readlines())
+		matrix = Matrix(input_file.readlines(), printable=True)
 	
 	solution_1 = matrix.count_steps_to_farthest()
 	solution_2 = matrix.count_inside_tiles()
 
 	print(solution_1, solution_2)
 	assert (solution_1, solution_2) == (6757, 523)
-	matrix._print_circuit()
-	
+	matrix.print_circuit()
+
 
 if __name__ == "__main__":
 	solve()
