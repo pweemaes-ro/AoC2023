@@ -8,7 +8,7 @@ from typing import Any, Callable, cast, TypeAlias
 # todo: Put as much as possible in a dataclass enum...
 
 
-class _Pipe(StrEnum):
+class Pipe(StrEnum):
 	"""All pipe chars. DO NOT USE string literals, use Pipe enum!"""
 	
 	UPPER_LEFT_CORNER = "F"
@@ -19,9 +19,9 @@ class _Pipe(StrEnum):
 	HORIZONTAL = "-"
 
 
-class Pipe(StrEnum):
+class PrintablePipe(StrEnum):
 	"""All PREFERED pipe chars. DO NOT USE string literals, use Pipe enum!"""
-	
+
 	UPPER_LEFT_CORNER = "┌"
 	UPPER_RIGHT_CORNER = "┐"
 	LOWER_LEFT_CORNER = "└"
@@ -30,8 +30,7 @@ class Pipe(StrEnum):
 	HORIZONTAL = "─"
 
 
-transform_table = \
-	{k.value: v.value for k, v in zip(_Pipe, Pipe)} | {".": ".", "S": "S"}
+transform_table = dict(zip(Pipe, PrintablePipe))
 
 connected_below_symbols = (Pipe.VERTICAL,
                            Pipe.UPPER_LEFT_CORNER,
@@ -155,7 +154,7 @@ class Matrix(list[list[Tile]]):
 		"""Add line to the matrix (also check for and set for start
 		location)."""
 		
-		self.append([Tile(transform_table[c]) for c in line[:-1]])
+		self.append([Tile(c) for c in line[:-1]])
 
 		if self.s_x == self.s_y == -1 and (x := line.find("S")) >= 0:
 			self.s_x = x
@@ -202,7 +201,7 @@ class Matrix(list[list[Tile]]):
 				if me.status == Status.INSIDE:
 					print("1", end='')
 				elif me.status == Status.PIPE:
-					print(me.symbol, end='')
+					print(transform_table.get(me.symbol, me.symbol), end='')
 				else:
 					print(' ', end='')
 			print()
