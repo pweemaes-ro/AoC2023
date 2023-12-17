@@ -73,12 +73,12 @@ NoDirections = (Direction.NO_DIRECTION, Direction.NO_DIRECTION)
 Directions: TypeAlias = tuple[Direction, ...]
 
 symbol_to_directions: dict[str, Directions] = \
-	{"│": (Direction.UP, Direction.DOWN),
-    "─": (Direction.LEFT, Direction.RIGHT),
-    "└": (Direction.RIGHT, Direction.UP),
-    "┘": (Direction.LEFT, Direction.UP),
-    "┐": (Direction.LEFT, Direction.DOWN),
-    "┌": (Direction.RIGHT, Direction.DOWN)}
+	{Pipe.VERTICAL: (Direction.UP, Direction.DOWN),
+    Pipe.HORIZONTAL: (Direction.LEFT, Direction.RIGHT),
+    Pipe.LOWER_LEFT_CORNER: (Direction.RIGHT, Direction.UP),
+    Pipe.LOWER_RIGHT_CORNER: (Direction.LEFT, Direction.UP),
+    Pipe.UPPER_RIGHT_CORNER: (Direction.LEFT, Direction.DOWN),
+    Pipe.UPPER_LEFT_CORNER: (Direction.RIGHT, Direction.DOWN)}
 
 directions_to_symbol: dict[tuple[Direction, ...], str] = \
 	{v: k for (k, v) in symbol_to_directions.items()} \
